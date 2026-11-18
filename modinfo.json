@@ -5,7 +5,7 @@
   "authors": [ "Mitsuriou" ],
   "website": "https://github.com/Mitsuriou/LoreBookTitles",
   "description": "Shows the real title and chapter number of a lore book (e.g. 'Title [2/8]') in the inventory, the hotbar and when looking at it on a bookshelf, instead of the generic 'Aged lore book' / 'Rotten lore book' name. The title appears once the book has been read.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "side": "Client",
   "dependencies": {
     "game": "1.22.0"
