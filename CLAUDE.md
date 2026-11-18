@@ -1,80 +1,80 @@
-# LoreBookTitles — mod Vintage Story (côté client)
+# LoreBookTitles — Vintage Story mod (client-side)
 
-## Objectif
-Afficher le vrai titre d'un livre d'histoire (lore book) dans l'inventaire et la hotbar,
-au lieu du nom générique « Livre d'histoire vieilli » / « Livre d'histoire pourrissant ».
+## Goal
+Show the real title of a lore book, with its chapter number, in the inventory, the hotbar and on bookshelves,
+instead of the generic "Aged lore book" / "Rotten lore book" name.
 
-## Environnement
-- Vintage Story 1.22.7, Windows 11, Visual Studio 2026 (pack C#), .NET 10 (`net10.0`).
-- Jeu installé dans `%APPDATA%\Vintagestory` (contient `assets`, `Mods`, `Lib`). La variable `VINTAGE_STORY`
-  n'est PAS définie sur la machine : le `.csproj` retombe sur `$(APPDATA)\Vintagestory` quand elle est vide.
-- Projet basé sur le template officiel (`vsmodtemplate`), sans le projet CakeBuild.
-- Build : `dotnet build` ou F5 dans VS (profil `Client` de `Properties/launchSettings.json`,
-  qui lance le jeu avec `--addModPath bin/<Config>/Mods`).
+## Environment
+- Vintage Story 1.22.7, Windows 11, Visual Studio 2026 (C# workload), .NET 10 (`net10.0`).
+- Game installed in `%APPDATA%\Vintagestory` (contains `assets`, `Mods`, `Lib`). The `VINTAGE_STORY` variable
+  is NOT set on the machine: the `.csproj` falls back to `$(APPDATA)\Vintagestory` when it is empty.
+- Project based on the official template (`vsmodtemplate`), without the CakeBuild project.
+- Build: `dotnet build` or F5 in VS (`Client` profile in `Properties/launchSettings.json`,
+  which starts the game with `--addModPath bin/<Config>/Mods`).
 
-## Ce qui a été vérifié dans le code du jeu (GitHub anegostudios)
+## Verified in the game code (anegostudios GitHub)
 - `ItemBook : ItemRollable`, namespace `Vintagestory.GameContent` (`vssurvivalmod`, `Systems/WritingSystem/ItemBook.cs`).
-- `ItemBook.GetHeldItemName(ItemStack)` ne lit que l'attribut `title` du stack, sinon le nom de base.
-- `ItemStack.GetName()` appelle `Collectible.GetHeldItemName(this)` (`vsapi`).
-- `GuiDialogReadonlyBook` affiche `Lang.Get(stack.Attributes.GetString("titleCode"))` pour les livres à `textCodes`.
-- `ModJournal.TryDiscoverLore` (`Systems/Journal.cs`) écrit `discoveryCode`, `chapterIds`, `textCodes` et
-  `titleCode` sur le livre **uniquement à la première découverte** (première lecture), pas à la génération
-  ni au ramassage.
+- `ItemBook.GetHeldItemName(ItemStack)` only reads the stack's `title` attribute, otherwise the base name.
+- `ItemStack.GetName()` calls `Collectible.GetHeldItemName(this)` (`vsapi`).
+- `GuiDialogReadonlyBook` displays `Lang.Get(stack.Attributes.GetString("titleCode"))` for books with `textCodes`.
+- `ModJournal.TryDiscoverLore` (`Systems/Journal.cs`) writes `discoveryCode`, `chapterIds`, `textCodes` and
+  `titleCode` on the book **only on first discovery** (first read), not when it is generated or picked up.
 
-## Vérifié dans les DLL locales (IL lu avec Mono.Cecil, 1.22.7)
-- Les livres d'histoire sont `item-lore-book-<color>` (`assets/survival/itemtypes/lore/lore.json`), classe
-  `ItemRandomLore : ItemBook`, qui ne redéfinit pas `GetHeldItemName` : le patch s'y applique (aussi aux
-  variantes `lore-paper` / `lore-scroll`). `book.json` (classe `ItemBook`) concerne les livres écrits par le joueur.
-- Hotbar : `Vintagestory.Client.NoObf.HudHotbar.RecomposeActiveSlotHoverText` (`VintagestoryLib.dll`) → `ItemStack.GetName()`.
-- Infobulle d'inventaire : `GuiElementItemstackInfo.AsyncRecompose` → `ItemSlot.GetStackName()` → `ItemStack.GetName()`.
-- `ItemStack.GetName()` → `CollectibleObject.GetHeldItemName` (virtuel) → `ItemBook.GetHeldItemName`.
+## Verified in the local DLLs (IL read with Mono.Cecil, 1.22.7)
+- Lore books are `item-lore-book-<color>` (`assets/survival/itemtypes/lore/lore.json`), class
+  `ItemRandomLore : ItemBook`, which does not override `GetHeldItemName`: the patch applies to it (and to the
+  `lore-paper` / `lore-scroll` variants). `book.json` (class `ItemBook`) is for player-written books.
+- Hotbar: `Vintagestory.Client.NoObf.HudHotbar.RecomposeActiveSlotHoverText` (`VintagestoryLib.dll`) → `ItemStack.GetName()`.
+- Inventory tooltip: `GuiElementItemstackInfo.AsyncRecompose` → `ItemSlot.GetStackName()` → `ItemStack.GetName()`.
+- `ItemStack.GetName()` → `CollectibleObject.GetHeldItemName` (virtual) → `ItemBook.GetHeldItemName`.
 
-## Fonctionnement du mod
-Un patch Harmony (postfix) sur `ItemBook.GetHeldItemName` remplace le nom par `Lang.Get(titleCode)`
-quand `titleCode` est présent et traduit. `modinfo.json` : `"side": "Client"`.
-Il ajoute ` [n/total]` : `n` = `chapterIds[0] + 1` (attribut du livre ; un seul chapitre par livre, cf.
-`ModJournal.getNextUndiscoveredChapter`), `total` = nombre de `pieces` de l'histoire `discoveryCode`, lu au
-démarrage client dans `config/lore/` (`JournalAsset`, public ; catégorie `config` = `Universal`, donc dispo côté client).
+## How the mod works
+A Harmony postfix on `ItemBook.GetHeldItemName` replaces the name with `Lang.Get(titleCode)`
+when `titleCode` is present and translated. `modinfo.json`: `"side": "Client"`.
+It appends ` [n/total]`: `n` = `chapterIds[0] + 1` (book attribute; one chapter per book, see
+`ModJournal.getNextUndiscoveredChapter`), `total` = number of `pieces` of the `discoveryCode` story, read at
+client startup from `config/lore/` (`JournalAsset`, public; the `config` category is `Universal`, so available client-side).
 
-## État / limites connues
-- `dotnet build` passe (0 avertissement, 0 erreur) ; chemins de DLL confirmés. Sortie : `bin/<Config>/Mods/mod/`.
-- Le build ne copie rien dans le jeu : un lancement normal ne charge pas le mod, il faut F5 (profil `Client`).
-- Testé en jeu le 2026-11-18, suffixe ` [n/total]` compris : le titre s'affiche dans l'inventaire, sur la hotbar
-  et dans le panneau du haut quand on pointe le livre dans une bibliothèque. Validé aussi en LAN, en rejoignant
-  la partie d'un autre joueur.
-- Fonctionne dans toutes les langues du jeu : le titre vient des traductions du jeu (`Lang.Get(titleCode)`).
-- Un livre jamais lu garde le nom générique (pas encore de `titleCode`). Le titre n'apparaît qu'après la première lecture.
+## Status / known limits
+- `dotnet build` passes (0 warnings, 0 errors); DLL paths confirmed. Output: `bin/<Config>/Mods/mod/`.
+- The build copies nothing into the game: a normal game launch does not load the mod, use F5 (`Client` profile).
+- Tested in game on 2026-11-18, ` [n/total]` suffix included: the title shows in the inventory, on the hotbar
+  and in the top info panel when looking at the book on a bookshelf. Also validated on LAN, joining another
+  player's game.
+- Works in every game language: the title comes from the game's translations (`Lang.Get(titleCode)`).
+- A book that was never read keeps the generic name (no `titleCode` yet). The title only appears after the first read.
 
 ## Roadmap
-Rien n'est encore publié. La première release publique sera la **1.0.0**, avec le lien GitHub déjà dans `modinfo.json`.
-Ordre : 1) préparation (faite), 2) repo GitHub, 3) lien GitHub dans le mod, 4) publication sur le ModDB.
+**1.0.0 published on 2026-11-18**: ModDB https://mods.vintagestory.at/lorebooktitles and GitHub release
+https://github.com/Mitsuriou/LoreBookTitles/releases/tag/1.0.0 (tag `1.0.0`, no `v` prefix, on commit `0ec7f17`).
 
-1. **FAIT : préparation de la publication sur https://mods.vintagestory.at/**
-   - Un build Release (`dotnet build -c Release` ou Release dans VS) crée `bin/Release/LoreBookTitles_<version>.zip`
-     via la cible `PackageMod` du `.csproj`. Le zip contient `modinfo.json`, la DLL, le pdb et deps.json à la racine,
-     et son nom reprend la version de `modinfo.json`. Augmenter cette version seulement pour les releases APRÈS la 1.0.0.
-   - Aucun mod existant avec ce nom, ce modid ou cette fonction (recherches « lore » et « book » sur le ModDB, 2026-11-18).
-   - Règle du ModDB (page Terms) : description en anglais obligatoire, qui explique clairement ce que fait le mod.
-     Rien trouvé sur le contenu exigé du zip ni sur le logo (il semble optionnel).
-2. **Repo GitHub : https://github.com/Mitsuriou/LoreBookTitles** (public, branche `main`). GitHub l'a créé avec un
-   seul commit, le `LICENSE` MIT (copyright Mitsuriou) : partir de ce commit avant de pousser le code local.
-   `.gitignore` (`bin/`, `obj/`, `.vs/`, `*.user`) et `README.md` (en anglais, avec la mention de transparence IA) sont prêts.
-   À FAIRE : premier commit et push.
-3. **FAIT : lien GitHub dans le champ `website` de `modinfo.json`** (toujours en 1.0.0), zip Release refait.
-4. **Publier la 1.0.0 sur le ModDB** (par l'utilisateur, avec son compte) : tester le zip seul en le copiant dans
-   `%APPDATA%\VintagestoryData\Mods` (pas en même temps que F5, sinon le modid est chargé deux fois), créer la page
-   du mod (Code Mod, Client side, 1.22.x) avec le lien GitHub, puis uploader le zip.
-   Optionnel : `modicon.png` à la racine du mod (icône du gestionnaire de mods), captures d'écran pour la page.
-- **Transparence IA (page ModDB ; déjà dans le README)** : indiquer que tout le code a été généré par Claude Opus 5.5
-  (Claude Code, effort xhigh) à partir d'idées humaines, et que le code final a été contrôlé par un humain.
-- FAIT : titre réel quand on pointe un livre rangé dans une bibliothèque. Aucun code en plus :
-  `BlockEntityBookshelf.GetBlockInfo` (panneau d'info centré en haut) affiche `ItemStack.GetName()` du slot pointé.
-  Même chose pour `BlockEntityScrollRack.GetBlockInfo` (parchemins). Alternative écartée : un popup flottant qui
-  suit la caméra (HUD maison qui reprojette la position du slot à chaque image), seulement si le panneau ne suffit pas.
+Next releases: bump `version` in `modinfo.json`, Release build, upload the new zip to the ModDB page and to a
+GitHub release whose tag is the bare version (same format as `1.0.0`).
 
-## Test conseillé
-1. Lancer le jeu via F5, vérifier que « Lore Book Titles » apparaît dans le Mod Manager.
-2. Obtenir un livre d'histoire, le lire une fois, puis regarder son nom dans l'inventaire et sur la hotbar.
-   Le ranger ensuite dans une bibliothèque et le pointer : le panneau du haut doit afficher son titre.
-   Le nom doit finir par ` [n/total]`, par ex. ` [1/8]` pour le premier livre de « blindbatrickhart ».
-3. Consulter `VintagestoryData/Logs/client-main.log` en cas d'erreur de chargement ou de patch Harmony.
+1. **DONE: prepare the release on https://mods.vintagestory.at/**
+   - A Release build (`dotnet build -c Release` or Release in VS) creates `bin/Release/LoreBookTitles_<version>.zip`
+     through the `PackageMod` target in the `.csproj`. The zip has `modinfo.json`, the DLL, the pdb and deps.json at
+     its root, and its name uses the version from `modinfo.json`. Only bump that version for releases AFTER 1.0.0.
+   - No existing mod with this name, modid or feature ("lore" and "book" searches on the ModDB, 2026-11-18).
+   - ModDB rule (Terms page): an English description is required, clearly explaining what the mod does.
+     Nothing found about required zip contents or the logo (it seems optional).
+2. **DONE: GitHub repo https://github.com/Mitsuriou/LoreBookTitles** (public, `main` branch, SSH remote `origin`).
+   Code pushed (commit `0ec7f17`, on top of the MIT `LICENSE` commit created by GitHub). Standard Visual Studio
+   `.gitignore`, English `README.md` with the AI transparency note and the ModDB / GitHub releases links.
+3. **DONE: GitHub link in the `website` field of `modinfo.json`** (still 1.0.0), Release zip rebuilt.
+4. **DONE: 1.0.0 published on the ModDB and as a GitHub release** (by the user). To test a zip outside VS, copy it
+   into `%APPDATA%\VintagestoryData\Mods` (not together with F5, or the modid is loaded twice).
+   Still open: screenshots for the ModDB page. Optional: `modicon.png` at the mod root (mod manager icon).
+- DONE: AI transparency on the ModDB page and in the README: all of the code was generated by Claude Opus 5.5
+  (Claude Code, xhigh effort) based on human ideas, and the final code was reviewed by a human.
+- DONE: real title when looking at a book stored on a bookshelf. No extra code:
+  `BlockEntityBookshelf.GetBlockInfo` (top centered info panel) shows `ItemStack.GetName()` of the targeted slot.
+  Same for `BlockEntityScrollRack.GetBlockInfo` (scrolls). Rejected alternative: a floating popup that follows
+  the camera (custom HUD reprojecting the slot position every frame), only if the panel is not enough.
+
+## Suggested test
+1. Start the game with F5, check that "Lore Book Titles" shows up in the Mod Manager.
+2. Get a lore book, read it once, then check its name in the inventory and on the hotbar.
+   Then put it on a bookshelf and look at it: the top panel must show its title.
+   The name must end with ` [n/total]`, e.g. ` [1/8]` for the first book of "blindbatrickhart".
+3. Check `VintagestoryData/Logs/client-main.log` if the mod fails to load or the Harmony patch fails.

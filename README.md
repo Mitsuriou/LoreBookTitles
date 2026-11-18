@@ -19,7 +19,8 @@ another player's world.
 
 ## Install
 
-Download the mod zip from the [Vintage Story ModDB](https://mods.vintagestory.at/) and put it in
+Download the mod zip from the [Vintage Story ModDB](https://mods.vintagestory.at/lorebooktitles) or the
+[GitHub releases](https://github.com/Mitsuriou/LoreBookTitles/releases) and put it as is in
 `%APPDATA%\VintagestoryData\Mods`. Requires Vintage Story 1.22.
 
 ## How it works
